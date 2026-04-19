@@ -1,174 +1,99 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { api } from '../composables/useApi'
-import { useRequirements } from '../composables/useRequirements'
-import type { HealthStatus, Requirement } from '../types'
-import RequirementCard from '../components/RequirementCard.vue'
+import { ref, computed, onUnmounted } from 'vue'
 
-const health = ref<HealthStatus | null>(null)
-const healthLoading = ref(true)
-const { requirements, loading, fetchRequirements, updateStatus } = useRequirements()
+// Timer state
+const elapsedSeconds = ref(0)
+const isRunning = ref(false)
+let intervalId: number | null = null
 
-const doneCount = computed(() => requirements.value.filter((r) => r.status === 'DONE').length)
-const progress = computed(() =>
-  requirements.value.length ? Math.round((doneCount.value / requirements.value.length) * 100) : 0,
-)
-
-// Show splash while building; once all requirements are DONE, show the real app
-const showSplash = computed(() => {
-  // Always show splash if still connecting or loading
-  if (healthLoading.value || loading.value) return true
-  // Show splash if no requirements are done yet (app is still being built)
-  if (doneCount.value === 0) return true
-  // Show the real app once at least one requirement is done
-  return false
+// Format time as MM:SS
+const formattedTime = computed(() => {
+  const minutes = Math.floor(elapsedSeconds.value / 60)
+  const seconds = elapsedSeconds.value % 60
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
 })
 
-onMounted(async () => {
-  try {
-    const { data } = await api.get<HealthStatus>('/api/health')
-    health.value = data
-    await fetchRequirements()
-  } catch {
-    // Backend not running yet — that's OK
-  } finally {
-    healthLoading.value = false
+// Timer controls
+function start() {
+  if (!isRunning.value) {
+    isRunning.value = true
+    intervalId = window.setInterval(() => {
+      elapsedSeconds.value++
+    }, 1000)
+  }
+}
+
+function pause() {
+  if (isRunning.value && intervalId !== null) {
+    isRunning.value = false
+    clearInterval(intervalId)
+    intervalId = null
+  }
+}
+
+function reset() {
+  pause()
+  elapsedSeconds.value = 0
+}
+
+// Cleanup on unmount
+onUnmounted(() => {
+  if (intervalId !== null) {
+    clearInterval(intervalId)
   }
 })
-
-const nextStatus: Record<string, Requirement['status']> = {
-  PENDING: 'IN_PROGRESS',
-  IN_PROGRESS: 'DONE',
-  DONE: 'PENDING',
-}
-
-async function cycleStatus(req: Requirement) {
-  await updateStatus(req.id, nextStatus[req.status])
-}
 </script>
 
 <template>
-  <!-- ☕ Splash — Shown while app is being built -->
-  <div
-    v-if="showSplash"
-    class="flex min-h-[calc(100vh-73px)] flex-col items-center justify-center text-center"
-  >
-    <!-- Coffee cup -->
-    <div class="mb-8">
-      <span class="animate-pulse text-9xl">☕</span>
+  <div class="min-h-screen bg-white flex flex-col items-center justify-center">
+    <!-- Timer Display -->
+    <div class="mb-16">
+      <span class="text-8xl font-extralight tracking-tight text-gray-900">
+        {{ formattedTime }}
+      </span>
     </div>
 
-    <h1 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-      Estamos construyendo tu idea
-    </h1>
-    <p class="mt-3 text-lg text-gray-500">
-      ¿Momento de un café? Mientras tanto, aquí tienes tu lista de deseos:
-    </p>
-
-    <div
-      v-if="health"
-      class="mt-8 inline-flex items-center gap-2 rounded-full bg-green-50 px-4 py-2 text-sm text-green-700"
-    >
-      <span class="h-2 w-2 rounded-full bg-green-500"></span>
-      Backend conectado — v{{ health.version }}
-    </div>
-    <div
-      v-else
-      class="mt-8 inline-flex items-center gap-2 rounded-full bg-amber-50 px-4 py-2 text-sm text-amber-700"
-    >
-      <span class="h-2 w-2 animate-pulse rounded-full bg-amber-500"></span>
-      Conectando con el backend...
-    </div>
-
-    <!-- Requirements loaded from the API -->
-    <div class="mx-auto mt-10 w-full max-w-md text-left">
-      <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
-        📋 Requisitos del proyecto
-      </h2>
-      <div v-if="loading" class="py-4 text-center text-sm text-gray-400">
-        Cargando requisitos...
-      </div>
-      <ul v-else class="space-y-2 opacity-75">
-        <li
-          v-for="req in requirements"
-          :key="req.id"
-          class="flex items-center gap-3 rounded-lg border border-dashed border-gray-300 bg-white/60 px-4 py-2.5 text-sm text-gray-500"
-        >
-          <span class="text-base">{{ req.status === 'DONE' ? '✅' : '⏳' }}</span>
-          {{ req.title }}
-        </li>
-      </ul>
-    </div>
-  </div>
-
-  <!-- 🚀 Real app — shown once requirements start getting done -->
-  <div v-else>
-    <div class="mb-8 text-center">
-      <h1 class="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">MinuTimer</h1>
-      <p class="mt-4 text-lg text-gray-600">Un temporizador minimalista con formato MM:SS para quien necesita contar tiempo de forma simple y elegante.</p>
-
-      <div
-        v-if="health"
-        class="mt-4 inline-flex items-center gap-2 rounded-full bg-green-50 px-4 py-2 text-sm text-green-700"
+    <!-- Controls -->
+    <div class="flex items-center gap-6">
+      <!-- Start/Pause Button -->
+      <button
+        v-if="!isRunning"
+        @click="start"
+        class="w-16 h-16 rounded-full bg-gray-900 text-white flex items-center justify-center hover:bg-gray-700 transition-colors"
+        aria-label="Iniciar"
       >
-        <span class="h-2 w-2 rounded-full bg-green-500"></span>
-        Backend conectado — v{{ health?.version }}
-      </div>
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 ml-1" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M8 5v14l11-7z"/>
+        </svg>
+      </button>
+      
+      <button
+        v-else
+        @click="pause"
+        class="w-16 h-16 rounded-full bg-gray-900 text-white flex items-center justify-center hover:bg-gray-700 transition-colors"
+        aria-label="Pausar"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+        </svg>
+      </button>
+
+      <!-- Reset Button -->
+      <button
+        @click="reset"
+        class="w-12 h-12 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center hover:bg-gray-200 transition-colors"
+        :class="{ 'opacity-50 cursor-not-allowed': elapsedSeconds === 0 }"
+        :disabled="elapsedSeconds === 0"
+        aria-label="Reiniciar"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+          <path d="M3 3v5h5"/>
+        </svg>
+      </button>
     </div>
 
-    <!-- Progress bar -->
-    <div class="mx-auto mb-6 max-w-xl">
-      <div class="mb-1 flex justify-between text-sm text-gray-500">
-        <span>Progreso</span>
-        <span>{{ doneCount }}/{{ requirements.length }} — {{ progress }}%</span>
-      </div>
-      <div class="h-2 overflow-hidden rounded-full bg-gray-200">
-        <div
-          class="h-full rounded-full bg-indigo-500 transition-all duration-500"
-          :style="{ width: progress + '%' }"
-        ></div>
-      </div>
-    </div>
-
-    <!-- Requirements list -->
-    <div class="mx-auto max-w-xl">
-      <div v-if="loading" class="text-center text-sm text-gray-400">Cargando requisitos...</div>
-
-      <div v-else-if="requirements.length === 0" class="mt-10 text-center">
-        <p class="text-gray-400">No hay requisitos en el PRD.</p>
-      </div>
-
-      <ul v-else class="space-y-2">
-        <li v-for="req in requirements" :key="req.id">
-          <RequirementCard :requirement="req" interactive @cycle-status="cycleStatus" />
-        </li>
-      </ul>
-    </div>
+    <!-- App Title -->
+    <p class="mt-20 text-sm text-gray-400 tracking-widest uppercase">Minutimer</p>
   </div>
 </template>
-
-<style scoped>
-@keyframes steam {
-  0% {
-    opacity: 0;
-    transform: translateY(0) scaleX(1);
-  }
-  50% {
-    opacity: 0.6;
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-20px) scaleX(1.5);
-  }
-}
-
-.animate-steam-1 {
-  animation: steam 2s ease-in-out infinite;
-}
-.animate-steam-2 {
-  animation: steam 2s ease-in-out 0.4s infinite;
-}
-.animate-steam-3 {
-  animation: steam 2s ease-in-out 0.8s infinite;
-}
-</style>

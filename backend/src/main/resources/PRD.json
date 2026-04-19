@@ -3,34 +3,32 @@
   "description": "Un temporizador minimalista con formato MM:SS para quien necesita contar tiempo de forma simple y elegante.",
   "requirements": [
     {
-      "title": "Página de inicio",
-      "description": "Landing page principal con información del producto",
-      "priority": "alta"
+      "id": 1,
+      "title": "Cronómetro con controles básicos",
+      "description": "La app muestra un cronómetro que cuenta el tiempo transcurrido. El usuario puede iniciar el conteo, pausarlo para detenerlo temporalmente, y resetearlo para volver a cero.",
+      "type": "feature",
+      "priority": "high"
     },
     {
-      "title": "Autenticación de usuarios",
-      "description": "Login y registro con validación de formularios",
-      "priority": "alta"
+      "id": 2,
+      "title": "Mostrar tiempo en formato MM:SS",
+      "description": "La app muestra el tiempo en formato minutos y segundos (MM:SS), fácil de leer de un vistazo.",
+      "type": "feature",
+      "priority": "high"
     },
     {
-      "title": "Panel de administración",
-      "description": "Dashboard para gestionar los datos de la aplicación",
-      "priority": "media"
+      "id": 3,
+      "title": "Diseño minimalista y limpio",
+      "description": "La interfaz es simple, sin distracciones, con mucho espacio en blanco y tipografía clara.",
+      "type": "ui",
+      "priority": "high"
     },
     {
-      "title": "API REST completa",
-      "description": "Endpoints CRUD para todas las entidades del dominio",
-      "priority": "alta"
-    },
-    {
-      "title": "Diseño responsive",
-      "description": "Interfaz adaptada a móvil, tablet y escritorio",
-      "priority": "media"
-    },
-    {
-      "title": "Tests unitarios",
-      "description": "Cobertura de tests para la lógica de negocio principal",
-      "priority": "baja"
+      "id": 4,
+      "title": "Controles básicos del temporizador",
+      "description": "El usuario puede iniciar, pausar y reiniciar el temporizador con botones simples.",
+      "type": "feature",
+      "priority": "high"
     }
   ]
 }
